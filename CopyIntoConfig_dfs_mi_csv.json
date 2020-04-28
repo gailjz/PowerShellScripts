@@ -1,0 +1,14 @@
+{
+	"StorateType":"DFS",
+	"CredentialType":"Managed Identity",
+	"Credential":"(IDENTITY= 'Managed Identity')",
+	"AccountName":"gailzvsblob",
+	"Container":"import",
+	"FileType":"CSV",
+	"FieldQuote": "\"",
+	"FieldTerminator":"^|^",
+	"RowTerminator":"0x0A",
+	"Encoding":"UTF8",
+	"FirstRow":"2",
+	"TruncateTable":"YES"
+}
