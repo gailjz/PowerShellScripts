@@ -1,0 +1,9 @@
+{
+	"StorateType":"DFS",
+	"CredentialType":"Managed Identity",
+	"Credential":"(IDENTITY= 'Managed Identity')",
+	"AccountName":"gailzvsblob",
+	"Container":"import",
+	"FileType":"PARQUET",
+	"TruncateTable":"YES"
+}
