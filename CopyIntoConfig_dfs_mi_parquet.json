@@ -1,9 +1,0 @@
-{
-	"StorateType":"DFS",
-	"CredentialType":"Managed Identity",
-	"Credential":"(IDENTITY= 'Managed Identity')",
-	"AccountName":"YourAccountName",
-	"Container":"import",
-	"FileType":"PARQUET",
-	"TruncateTable":"YES"
-}
