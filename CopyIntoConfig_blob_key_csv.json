@@ -2,7 +2,7 @@
 	"StorateType":"BLOB",
 	"CredentialType":"Storage Account Key",
 	"Credential":"(IDENTITY= 'Storage Account Key', SECRET='YourAzureStorageAccountKeyHere----XoXoAbx==')",
-	"AccountName":"gailzvsblob",
+	"AccountName":"yourAccountName",
 	"Container":"import",
 	"FileType":"CSV",
 	"FieldQuote": "\"",
