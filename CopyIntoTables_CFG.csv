@@ -1,0 +1,7 @@
+﻿Active,DatabaseName,SchemaName,TableName,AsaSchema,SqlFilePath
+1,AdventureWorksDW2017,dbo,DimAccount,deploy,C:\migratemaster\tsql\asa_objects\CopyInto
+1,AdventureWorksDW2017,dbo,DimCurrency,deploy,C:\migratemaster\tsql\asa_objects\CopyInto
+1,AdventureWorksDW2017,dbo,DimCustomer,deploy,C:\migratemaster\tsql\asa_objects\CopyInto
+1,AdventureWorksDW2017,dbo,DimProduct,deploy,C:\migratemaster\tsql\asa_objects\CopyInto
+1,AdventureWorksDW2017,dbo,DimDate,deploy,C:\migratemaster\tsql\asa_objects\CopyInto
+1,AdventureWorksDW2017,dbo,FactInternetSales,deploy,C:\migratemaster\tsql\asa_objects\CopyInto
