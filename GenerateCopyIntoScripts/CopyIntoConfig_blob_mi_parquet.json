@@ -1,0 +1,9 @@
+{
+	"StorateType":"BLOB",
+	"CredentialType":"Managed Identity",
+	"Credential":"(IDENTITY= 'Managed Identity')",
+	"AccountName":"StorageAccountName",
+	"Container":"import",
+	"FileType":"Parquet",
+	"TruncateTable":"YES"
+}
