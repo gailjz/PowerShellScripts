@@ -2,7 +2,7 @@
 	"StorateType":"DFS",
 	"CredentialType":"Managed Identity",
 	"Credential":"(IDENTITY= 'Managed Identity')",
-	"AccountName":"gailzvsblob",
+	"AccountName":"YourAccountName",
 	"Container":"import",
 	"FileType":"CSV",
 	"FieldQuote": "\"",
