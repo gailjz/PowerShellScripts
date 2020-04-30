@@ -286,6 +286,4 @@ $Excel.Quit()
 
 $MySqlConnection.Close()
 
-$FinishTime = Get-Date 
-Write-Host "Finished work at " $FinishTime  
-Write-Host "Have a great day!" 
+
