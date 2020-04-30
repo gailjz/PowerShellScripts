@@ -4,8 +4,8 @@ Function ExcelToCsv {
     param(
         [ Parameter(Mandatory = $true) ] [string] $FolderName,
         [ Parameter(Mandatory = $true) ] [string] $InputFile,
-        [ Parameter(Mandatory = $true) ] [string] $OutputFileWoExt = 'FileNameWoExt',
-        [ Parameter(Mandatory = $true) ] [string] $PostFix = '_Sheet'
+        [ Parameter(Mandatory = $true) ] [string] $OutputFileWoExt, # 'FileNameWoExt'
+        [ Parameter(Mandatory = $true) ] [string] $PostFix # '_Sheet'
     )
     $excelFile = Join-Path $FolderName $InputFile
     $ExcelObj = New-Object -ComObject Excel.Application
