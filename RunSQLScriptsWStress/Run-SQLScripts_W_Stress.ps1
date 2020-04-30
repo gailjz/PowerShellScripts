@@ -30,8 +30,6 @@ Set-Location -Path $ScriptPath
 
 $error.Clear()
 
-$defaultCfgFilePath = $ScriptPath
-
 $displayMsg = " Program starts now. Be prepared to confirm or specify the configuration file. "
 Write-Host " "
 Write-Host $displayMsg -ForegroundColor Cyan 
@@ -39,7 +37,7 @@ Write-Host " "
 
 $cfgFilePath = Read-Host -prompt "Enter the Config File Path or press 'Enter' to accept the default [$($defaultCfgFilePath)]"
 if ([string]::IsNullOrEmpty($cfgFilePath)) {
-    $cfgFilePath = $defaultCfgFilePath
+    $cfgFilePath = $ScriptPath
 }
 
 $defaultCfgFile = "Run-SQLScripts-W-Stress-Config.xlsx"
@@ -73,7 +71,9 @@ $HeaderRow -join ","  >> $StatusLogFile
 
 $CsvFileWoExt = [System.IO.Path]::GetFileNameWithoutExtension($CfgFileFullPath)
 $SheetName = "-Sheet"
+# Call Function to Convert Excel File Sheets into CSV files 
 ExcelToCsv -FolderName $cfgFilePath -InputFile $cfgFile -OutputFileWoExt $CsvFileWoExt -PostFix $SheetName
+# Make fure the configuration file sheets match below arrangements: 
 $serverDbCfgFile = $CsvFileWoExt + $SheetName + '1' + ".csv"
 $scriptsCfgFile = $CsvFileWoExt + $SheetName + '2' + ".csv"
 
@@ -83,7 +83,7 @@ $scriptsCfgCsv = Import-Csv $scriptsCfgFile
 #$server = "localMachine\GAILZSQLSVR2017"
 $server = "'.\GAILZSQLSVR2017"
 $database = "AdventureWorksDW2017"
-$workersCount = 3 # this is default value 
+$workersCount = 3 # just set an initial value. To be overwritten from Config File 
 ForEach ($csvItem in $serverDbCfgCsv) {
     $server = $csvItem.ServerName
     $database = $csvItem.DatabaseName
@@ -124,19 +124,15 @@ $MySqlConnection = New-Object System.Data.SqlClient.SqlConnection("Data Source=$
 
 if ($Integrated.toUpper() -eq 'NO') {
     $MySqlConnection = New-Object System.Data.SqlClient.SqlConnection("Data Source=$server;Integrated Security=false;Initial Catalog=$database;User ID=$UserName;Password=$Password")
-
 }
-
 
 $error.Clear()
 
-	
 #Workflow RunParallelExecute {
 #ForEach -Parallel -throttlelimit $workersCount ($S in $scriptsCfgCsv ) {
 ForEach ($S in $scriptsCfgCsv ) {
     $StartDate = (Get-Date)
     $Active = $S.Active
-    $rows = New-Object PSObject 
     if ($Active -eq '1') {
         $ScriptType = $S.ScriptType
         $ScriptFileFolder = $S.ScriptFileFolder
@@ -153,7 +149,7 @@ ForEach ($S in $scriptsCfgCsv ) {
         $queryTimeout = 5; # 3 seconds 
 
         $ReturnValues = @{ }
-         
+        $rows = New-Object PSObject 
         for ($runNumber = 1; $runNumber -le $NumberExec; $runNumber++ ) {
             $displayMsg = "Pausing for " + $PauseTimeInSec + " Seconds before executing next query in Script File: " + $ScriptFileName
             Write-Host $displayMsg -ForegroundColor Yellow -BackgroundColor Black
@@ -163,25 +159,13 @@ ForEach ($S in $scriptsCfgCsv ) {
             $ReturnValues = ExecuteScriptFile -Connection $MySqlConnection -ConnectionTimeout $connTimeout -InputFile $ScriptFileFullPath -QueryTimeout $queryTimeout -Variables $Variables
             $EndDate = (Get-Date)
             $Timespan = (New-TimeSpan -Start $StartDate -End $EndDate)
-            $DurationSec = ($Timespan.seconds + ($Timespan.Minutes * 60) + ($Timespan.Hours * 60 * 60))
+            $DurationSec = ($Timespan.Seconds + ($Timespan.Minutes * 60) + ($Timespan.Hours * 60 * 60))
            
             if ($ReturnValues.Get_Item("Status") -eq 'Success') {
                 $Status = $ReturnValues.Get_Item("Status")
-                $Message = "  Process Completed for File: " + $SqlFileFullName + " Duration: " + $DurationSec
+                $Message = "  Process Completed for File: " + $SqlFileFullName + " Duration: " + $DurationSec + " Seconds."
                 Write-Host $Message -ForegroundColor Green -BackgroundColor Black
-                #$StatusRow = 0, $ScriptType, $ScriptFileFolder, $ScriptFileName, $Variables, $NumberExec, $PauseTimeInSec, $Status, $DurationSec
-                #$StatusRow -join ","  >> $StatusLogFile
-                $rows | Add-Member -MemberType NoteProperty -Name "Active" -Value '0' -force	
-                $rows | Add-Member -MemberType NoteProperty -Name "ScriptType" -Value $ScriptType -force	
-                $rows | Add-Member -MemberType NoteProperty -Name "ScriptFileFolder" -Value $ScriptFileFolder -force	
-                $rows | Add-Member -MemberType NoteProperty -Name "ScriptFileName" -Value $ScriptFileName -force	
-                $rows | Add-Member -MemberType NoteProperty -Name "Variables" -Value $Variables -force	
-                $rows | Add-Member -MemberType NoteProperty -Name "NumberExec" -Value $NumberExec -force	
-                $rows | Add-Member -MemberType NoteProperty -Name "PauseTimeInSec" -Value $PauseTimeInSec -force
-                $rows | Add-Member -MemberType NoteProperty -Name "Status" -Value $Status -force	
-                $rows | Add-Member -MemberType NoteProperty -Name "DurationSec" -Value $DurationSec -force	
-                $rows | Export-Csv -Path "$StatusLogFile" -Append -Delimiter "," -NoTypeInformation
-                  
+                $rows | Add-Member -MemberType NoteProperty -Name "Active" -Value '0' -force    
             }
             else {
                 $ErrorMsg = "  Error running Script for File: " + $FileName + "Error: " + $ReturnValues.Get_Item("Msg") + "Duration: " + $DurationSec + " Seconds"
@@ -189,19 +173,18 @@ ForEach ($S in $scriptsCfgCsv ) {
                 $Status = "Error: " + $ReturnValues.Get_Item("Msg")
                 $Status = $Status.Replace("`r`n", "")
                 $Status = '"' + $Status.Replace("`n", "") + '"'
-                #$StatusRow = 1, $ScriptType, $ScriptFileFolder, $ScriptFileName, $Variables, $NumberExec, $PauseTimeInSec, $Status, $DurationSec
-                #$StatusRow -join ","  >> $StatusLogFile
                 $rows | Add-Member -MemberType NoteProperty -Name "Active" -Value '1' -force	
-                $rows | Add-Member -MemberType NoteProperty -Name "ScriptType" -Value $ScriptType -force	
-                $rows | Add-Member -MemberType NoteProperty -Name "ScriptFileFolder" -Value $ScriptFileFolder -force	
-                $rows | Add-Member -MemberType NoteProperty -Name "ScriptFileName" -Value $ScriptFileName -force	
-                $rows | Add-Member -MemberType NoteProperty -Name "Variables" -Value $Variables -force	
-                $rows | Add-Member -MemberType NoteProperty -Name "NumberExec" -Value $NumberExec -force	
-                $rows | Add-Member -MemberType NoteProperty -Name "PauseTimeInSec" -Value $PauseTimeInSec -force
-                $rows | Add-Member -MemberType NoteProperty -Name "Status" -Value $Status -force	
-                $rows | Add-Member -MemberType NoteProperty -Name "DurationSec" -Value $DurationSec -force	
-                $rows | Export-Csv -Path "$StatusLogFile" -Append -Delimiter "," -NoTypeInformation
             }
+            $rows | Add-Member -MemberType NoteProperty -Name "ScriptType" -Value $ScriptType -force	
+            $rows | Add-Member -MemberType NoteProperty -Name "ScriptFileFolder" -Value $ScriptFileFolder -force	
+            $rows | Add-Member -MemberType NoteProperty -Name "ScriptFileName" -Value $ScriptFileName -force	
+            $rows | Add-Member -MemberType NoteProperty -Name "Variables" -Value $Variables -force	
+            $rows | Add-Member -MemberType NoteProperty -Name "NumberExec" -Value $NumberExec -force	
+            $rows | Add-Member -MemberType NoteProperty -Name "PauseTimeInSec" -Value $PauseTimeInSec -force
+            $rows | Add-Member -MemberType NoteProperty -Name "Status" -Value $Status -force	
+            $rows | Add-Member -MemberType NoteProperty -Name "DurationSec" -Value $DurationSec -force	
+            $rows | Export-Csv -Path "$StatusLogFile" -Append -Delimiter "," -NoTypeInformation
+
             
         }
 
