@@ -80,8 +80,10 @@ $scriptsCfgFile = $CsvFileWoExt + $SheetName + '2' + ".csv"
 $serverDbCfgCsv = Import-Csv $serverDbCfgFile
 $scriptsCfgCsv = Import-Csv $scriptsCfgFile
 
-#$server = "localMachine\GAILZSQLSVR2017"
-$server = "'.\GAILZSQLSVR2017"
+#$server = "localhost\GailzSqlSvr2017"
+$server = "localMachine\GailzSqlSvr2017"
+
+# $server = "'.\GAILZSQLSVR2017"
 $database = "AdventureWorksDW2017"
 $workersCount = 3 # just set an initial value. To be overwritten from Config File 
 ForEach ($csvItem in $serverDbCfgCsv) {
