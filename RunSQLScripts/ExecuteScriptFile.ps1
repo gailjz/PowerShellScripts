@@ -6,15 +6,15 @@
 # Description: Scripts to run SQL Scripts stored in files 
 #
 ############################################################################################################
+
 Function ExecuteScriptFile { 
     [CmdletBinding()] 
     param( 
         [Parameter(Position = 1, Mandatory = $false)] [System.Data.SqlClient.SqlConnection]$Connection, 
-        [Parameter(Position = 2, Mandatory = $false)] [Int32]$ConnectionTimeout = 300, 
-        [Parameter(Position = 3, Mandatory = $false)] [string]$InputFile, 
-        [Parameter(Position = 4, Mandatory = $false)] [Int32]$QueryTimeout = 120, 
-        [Parameter(Position = 5, Mandatory = $false)] [string]$Variables = '',
-        [Parameter(Position = 6, Mandatory = $false)] [ValidateSet("DataSet", "DataTable", "DataRow")] [string]$As = "DataSet"
+        [Parameter(Position = 2, Mandatory = $false)] [string]$InputFile, 
+        [Parameter(Position = 3, Mandatory = $false)] [Int32]$QueryTimeout = 30, 
+        [Parameter(Position = 4, Mandatory = $false)] [string]$Variables = '',
+        [Parameter(Position = 5, Mandatory = $false)] [ValidateSet("DataSet", "DataTable", "DataRow")] [string]$As = "DataSet"
     ) 
 
     $ReturnValues = @{ }
@@ -100,7 +100,8 @@ Function ProcessConfigAndRunScript
     param( 
         [Parameter(Position = 1, Mandatory = $false)] [string]$csvFileFullPath = '',
         [Parameter(Position = 2, Mandatory = $false)] [string]$statusLogFileFullPath = '',
-        [Parameter(Position = 3, Mandatory = $false)] [System.Data.SqlClient.SqlConnection]$Connection
+        [Parameter(Position = 3, Mandatory = $false)] [System.Data.SqlClient.SqlConnection]$Connection,
+        [Parameter(Position = 4, Mandatory = $false)] [string]$queryTimeout = 30
     ) 
     $scriptsCfgCsv = $scriptsCfgCsv = Import-Csv $csvFileFullPath
 
@@ -119,9 +120,6 @@ Function ProcessConfigAndRunScript
     
             $SqlFileFullName = $ScriptFileFolder + "\" + $ScriptFileName
     
-            $connTimeout = 300; #set to 6 min
-            $queryTimeout = 120; #set to 2 min
-    
             $ReturnValues = @{ }
             $rows = New-Object PSObject 
             for ($runNumber = 1; $runNumber -le $NumberExec; $runNumber++ ) {
@@ -130,7 +128,7 @@ Function ProcessConfigAndRunScript
                 Start-Sleep -s $PauseTimeInSec
             
                 $StartDate = (Get-Date)
-                $ReturnValues = ExecuteScriptFile -Connection $MySqlConnection -ConnectionTimeout $connTimeout -InputFile $ScriptFileFullPath -QueryTimeout $queryTimeout -Variables $Variables
+                $ReturnValues = ExecuteScriptFile -Connection $MySqlConnection -InputFile $ScriptFileFullPath -QueryTimeout $queryTimeout -Variables $Variables
                 $EndDate = (Get-Date)
                 $Timespan = (New-TimeSpan -Start $StartDate -End $EndDate)
                 $DurationSec = ($Timespan.Seconds + ($Timespan.Minutes * 60) + ($Timespan.Hours * 60 * 60))
