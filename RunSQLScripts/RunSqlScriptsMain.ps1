@@ -102,10 +102,15 @@ $serverDbCfgCsv = Import-Csv $serverDbCfgFile
 $server = "localMachine\GailzSqlSvr2017"
 # $server = "'.\GAILZSQLSVR2017"
 $database = "AdventureWorksDW2017"
+$connectionTimeOut = 30
+$queryTimeOut = 30
 $workersCount = 1 # just set an initial value. To be overwritten from Config File 
+
 ForEach ($csvItem in $serverDbCfgCsv) {
     $server = $csvItem.ServerName
     $database = $csvItem.DatabaseName
+    $connectionTimeOut = $csvItem.ConnectionTimeOut
+    $queryTimeOut = $csvItem.QueryTimeOut
     $workersCount = $csvItem.WorkersCount
     $msg = "Server Name: " + $server + " Database Name: " + $database + "WorkersCount: " + $workersCount
     Write-Host $msg -ForegroundColor Blue
@@ -140,10 +145,13 @@ $error.Clear()
 #=====================================================
 # Get SQL Server Connection 
 #=====================================================
-$MySqlConnection = New-Object System.Data.SqlClient.SqlConnection("Data Source=$server;Integrated Security=SSPI;Initial Catalog=$database;")
+
+
+#$MySqlConnection = New-Object System.Data.SqlClient.SqlConnection("Data Source=$server;Integrated Security=SSPI;Initial Catalog=$database;)
+$MySqlConnection = New-Object System.Data.SqlClient.SqlConnection("Data Source=$server;Integrated Security=SSPI;Initial Catalog=$database;Connect Timeout=$connectionTimeOut")
 
 if ($Integrated.toUpper() -eq 'NO') {
-    $MySqlConnection = New-Object System.Data.SqlClient.SqlConnection("Data Source=$server;Integrated Security=false;Initial Catalog=$database;User ID=$UserName;Password=$Password")
+    $MySqlConnection = New-Object System.Data.SqlClient.SqlConnection("Data Source=$server;Integrated Security=false;Initial Catalog=$database;User ID=$UserName;Password=$Password;Connect Timeout=$connectionTimeOut")    
 }
 
 
@@ -164,7 +172,7 @@ if ($workersCount -eq 1) {
         $HeaderRow = "Active", "ScriptType", "ScriptFileFolder", "ScriptFileName", "Variables", "NumberExec", "PauseTimeInSec", "Status", "DurationSec"
         $HeaderRow -join ","  >> $statusLogFileFullPath
 
-        ProcessConfigAndRunScript -csvFileFullPath $scriptsCfgFileFullPath -statusLogFileFullPath $statusLogFileFullPath -Connection $MySqlConnection
+        ProcessConfigAndRunScript -csvFileFullPath $scriptsCfgFileFullPath -statusLogFileFullPath $statusLogFileFullPath -Connection $MySqlConnection -queryTimeout $queryTimeOut
     }
 }
 # This is not working yet. It is designed to run the scripts tasks in parallel 
@@ -186,7 +194,7 @@ elseif ($workersCount -ge 2) {
             $HeaderRow = "Active", "ScriptType", "ScriptFileFolder", "ScriptFileName", "Variables", "NumberExec", "PauseTimeInSec", "Status", "DurationSec"
             #$HeaderRow -join ","  >> $statusLogFileFullPath
     
-            ProcessConfigAndRunScript -csvFileFullPath $scriptsCfgFileFullPath -statusLogFileFullPath $statusLogFileFullPath -Connection $MySqlConnection
+            ProcessConfigAndRunScript -csvFileFullPath $scriptsCfgFileFullPath -statusLogFileFullPath $statusLogFileFullPath -Connection $MySqlConnection -queryTimeout $queryTimeOut
         }
     
     }
