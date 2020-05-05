@@ -35,7 +35,7 @@ Write-Host " "
 Write-Host $displayMsg -ForegroundColor Cyan 
 Write-Host " "
 
-$defaultCfgFilePath = "C:\Users\gazho\OneDrive - Microsoft\Zhou_Data\Projects_Assets_IP_and_Tools\PowerShell_Scripts\Run_SQLScripts_W_Stress"
+$defaultCfgFilePath = $ScriptPath 
 $cfgFilePath = Read-Host -prompt "Enter the Config File Path or press 'Enter' to accept the default [$($defaultCfgFilePath)]"
 if ([string]::IsNullOrEmpty($cfgFilePath)) {
     $cfgFilePath = $ScriptPath
