@@ -10,9 +10,9 @@ Function ExecuteScriptFile {
     [CmdletBinding()] 
     param( 
         [Parameter(Position = 1, Mandatory = $false)] [System.Data.SqlClient.SqlConnection]$Connection, 
-        [Parameter(Position = 2, Mandatory = $false)] [Int32]$ConnectionTimeout = 0, 
+        [Parameter(Position = 2, Mandatory = $false)] [Int32]$ConnectionTimeout = 300, 
         [Parameter(Position = 3, Mandatory = $false)] [string]$InputFile, 
-        [Parameter(Position = 4, Mandatory = $false)] [Int32]$QueryTimeout = 0, 
+        [Parameter(Position = 4, Mandatory = $false)] [Int32]$QueryTimeout = 120, 
         [Parameter(Position = 5, Mandatory = $false)] [string]$Variables = '',
         [Parameter(Position = 6, Mandatory = $false)] [ValidateSet("DataSet", "DataTable", "DataRow")] [string]$As = "DataSet"
     ) 
@@ -119,8 +119,8 @@ Function ProcessConfigAndRunScript
     
             $SqlFileFullName = $ScriptFileFolder + "\" + $ScriptFileName
     
-            $connTimeout = 30; #set to 30 seconds 
-            $queryTimeout = 5; # 3 seconds 
+            $connTimeout = 300; #set to 6 min
+            $queryTimeout = 120; #set to 2 min
     
             $ReturnValues = @{ }
             $rows = New-Object PSObject 
