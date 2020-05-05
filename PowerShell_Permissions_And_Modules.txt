@@ -1,0 +1,19 @@
+Setup PowerShell Scripts Environment
+1.1.	Permissions 
+When you start PowerShell on a computer for the first time, the Restricted execution policy (the default) is likely to be in effect. You may not be able to run PowerShell scripts downloaded from Internet.
+If you are using PowerShell ISE or Visual Studio Code, you need to run as administrator to change Policy. 
+You may be able pin PowerShell IDE to taskbar, then Shift + right-click to Run with Elevated Rights. Run below one of the below scripts to change Policy:  
+
+Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
+
+Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope LocalMachine
+
+Alternatively, you may be able to use the Unblock-File cmdlet (Unblock-File -Path .\fileName.ps1). 
+1.2.	Install PowerShell Modules 
+
+Install PowerShell Modules: 
+
+Install-Module sqlserver
+
+Install-Module -Name ImportExcel 
+
