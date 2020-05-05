@@ -59,7 +59,7 @@ Function ExecuteScriptFile {
         #$da.fill($ds) 
 
         $ReturnValues.add('Status', "Success")
-        $ReturnValues.add('Msg', $ErrVar)
+        $ReturnValues.add('Msg', "Successful")
 
         #PrintDataSetRows -dataSet $ds
     }
@@ -103,7 +103,7 @@ Function ProcessConfigAndRunScript
         [Parameter(Position = 3, Mandatory = $false)] [System.Data.SqlClient.SqlConnection]$Connection,
         [Parameter(Position = 4, Mandatory = $false)] [string]$queryTimeout = 30
     ) 
-    $scriptsCfgCsv = $scriptsCfgCsv = Import-Csv $csvFileFullPath
+    $scriptsCfgCsv = Import-Csv $csvFileFullPath
 
     ForEach ($S in $scriptsCfgCsv ) {
         $StartDate = (Get-Date)
