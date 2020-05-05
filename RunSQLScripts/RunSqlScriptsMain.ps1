@@ -153,7 +153,7 @@ $MySqlConnection = New-Object System.Data.SqlClient.SqlConnection("Data Source=$
 if ($Integrated.toUpper() -eq 'NO') {
     $MySqlConnection = New-Object System.Data.SqlClient.SqlConnection("Data Source=$server;Integrated Security=false;Initial Catalog=$database;User ID=$UserName;Password=$Password;Connect Timeout=$connectionTimeOut")    
 }
-
+$MySqlConnection.open()
 
 #======================================================================
 # Run Scripts Based on Each Sheet of Configuration - 
