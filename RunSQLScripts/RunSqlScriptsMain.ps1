@@ -112,7 +112,7 @@ ForEach ($csvItem in $serverDbCfgCsv) {
     $connectionTimeOut = $csvItem.ConnectionTimeOut
     $queryTimeOut = $csvItem.QueryTimeOut
     $workersCount = $csvItem.WorkersCount
-    $msg = "Server Name: " + $server + " Database Name: " + $database + "WorkersCount: " + $workersCount
+    $msg = "Server Name: " + $server + " Database Name: " + $database + " WorkersCount: " + $workersCount
     Write-Host $msg -ForegroundColor Blue
 }
 
