@@ -3,7 +3,14 @@
 #
 # Author: Gaiye "Gail" Zhou
 # May 2020
-# Description: Scripts to run SQL Scripts stored in files 
+# Description: It will run SQL Scripts stored in .sql files in specified folder. 
+# The program will promot users for below information
+#   (1) Folder Name where SQL Scripts are stored
+#   (2) Full Qualified SQL Server Name or Azure Synapse SQL Server Name (Server.database.windows.net)
+#   (3) Using Integrated Security or Not 
+#   (4) SQL Authenfication User Name and Password (if not using Integrated Security)
+# The program will produce a log file for status of runing the SQL Scripts. 
+# The log file name is RunSqlFilesInFolder_Log.csv   (If you name this script RunSqlFilesInFolder.ps1)
 #  
 ############################################################################################################
 
@@ -14,7 +21,7 @@ Function GetPassword([SecureString] $securePassword) {
     return $P
 }
 
-Function ExecuteScriptFileLogResult { 
+Function ExecuteScriptFile { 
     [CmdletBinding()] 
     param( 
         [Parameter(Position = 1, Mandatory = $false)] [System.Data.SqlClient.SqlConnection]$Connection, 
@@ -27,14 +34,7 @@ Function ExecuteScriptFileLogResult {
         if ($InputFile) { 
             $filePath = $(resolve-path $InputFile).path 
             $Query = [System.IO.File]::ReadAllText("$filePath") 
-        } 
-     
-        #Following EventHandler is used for PRINT and RAISERROR T-SQL statements. Executed when -Verbose parameter specified by caller 
-        if ($PSBoundParameters.Verbose) { 
-            $Connection.FireInfoMessageEventOnUserErrors = $true 
-            $handler = [System.Data.SqlClient.SqlInfoMessageEventHandler] { Write-Verbose "$($_)" } 
-            $Connection.add_InfoMessage($handler) 
-        } 
+        }  
     
         $cmd = new-object system.Data.SqlClient.SqlCommand($Query, $Connection) 
         $cmd.CommandTimeout = $QueryTimeout 
@@ -42,43 +42,33 @@ Function ExecuteScriptFileLogResult {
         $da = New-Object system.Data.SqlClient.SqlDataAdapter($cmd)
 
         [void]$da.fill($ds) 
-        #$da.fill($ds) 
 
         $ReturnValues.add('Status', "Success")
         $ReturnValues.add('Msg', "Done")
 
     }
     Catch [System.Data.SqlClient.SqlException] {
-        # For SQL exception  
         $Err = $_ 
-
         $ReturnValues.add('Status', "Error")
         $ReturnValues.add('Msg', $Err)
-		
-        Write-Verbose "Capture SQL Error" 
-        if ($PSBoundParameters.Verbose) { Write-Verbose "SQL Error:  $Err" }  
     } 
     Catch {
-        # For other exception 
-        #	Write-Verbose "Capture Other Error"   
-
         $Err = $_ 
-
         $ReturnValues.add('Status', "Error")
         $ReturnValues.add('Msg', $Err)
-	
     }  
     Finally { 
         $cmd.Dispose()
         $ds.Dispose()
         $da.Dispose()
     }
- 
     return $ReturnValues
 	 
 } 
 
-
+###############################################################
+# Main Program Starts Here 
+###############################################################
 
 $MySqlScriptFilePath = 'C:\Z_Tests\SQLScripts'
 $MySqlServer = '.\GailzSqlSvr2017'
@@ -95,21 +85,19 @@ if ([string]::IsNullOrEmpty($server)) {
     $server = $MySqlServer
 }
 
-
 $database = Read-Host -prompt "Enter the Database Name  or press 'Enter' to accept the default [$($MyDatabase)]"
 if ([string]::IsNullOrEmpty($database)) {
     $database = $MyDatabase
 }
 
-
-$Integrated = Read-Host -prompt "Enter 'Yes' or 'No' to connect using integrated Security or press 'Enter' to accept the default [$($DefaultIntegrated)]"
+$Integrated = Read-Host -prompt "Enter 'Yes' or 'No' to connect using integrated security or press 'Enter' to accept the default [$($DefaultIntegrated)]"
 if ([string]::IsNullOrEmpty($Integrated)) {
     $Integrated = $DefaultIntegrated
 }
 
 if ($Integrated.toUpper() -eq "NO") {
     Write-Host "Please Enter SQLAUTH Login Information..." -ForegroundColor Yellow
-    $UserName = Read-Host -prompt "Enter the User Name"
+    $UserName = Read-Host -prompt "Enter the User Name: "
     if ([string]::IsNullOrEmpty($UserName)) {
         Write-Host "A user name must be entered" -ForegroundColor Red
         break
@@ -123,8 +111,6 @@ if ($Integrated.toUpper() -eq "NO") {
 }
 
 $connectionTimeOut = '30' # in seconds 
-
-#$MySqlConnection = New-Object System.Data.SqlClient.SqlConnection("Data Source=$server;Integrated Security=SSPI;Initial Catalog=$database;)
 $MySqlConnection = New-Object System.Data.SqlClient.SqlConnection("Data Source=$server;Integrated Security=SSPI;Initial Catalog=$database;Connect Timeout=$connectionTimeOut")
 
 if ($Integrated.toUpper() -eq 'NO') {
@@ -148,7 +134,7 @@ if ((test-path $LogFileFullPath)) {
 }
 
 
-$HeaderRow = "ScriptFile", "Status", "Message", "DurationSec"
+$HeaderRow = "SqlScriptFile", "Status", "Message", "DurationSec"
 $HeaderRow -join ","  >> $LogFileFullPath
 
 $myQueryTimeOut = '30' 
@@ -158,7 +144,7 @@ foreach ($f in Get-ChildItem -path $SqlScriptFilePath  -Filter *.sql) {
     
     $SqlScriptFileName = $f.FullName.ToString()	
     $StartDate = (Get-Date)
-    $ReturnValues  = ExecuteScriptFileLogResult -Connection $MySqlConnection -InputFile $SqlScriptFileName -QueryTimeout $myQueryTimeOut 
+    $ReturnValues  = ExecuteScriptFile -Connection $MySqlConnection -InputFile $SqlScriptFileName -QueryTimeout $myQueryTimeOut 
     $Status = $ReturnValues.Get_Item("Status")
     $Message = $ReturnValues.Get_Item("Msg")
     $EndDate = (Get-Date)
