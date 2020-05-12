@@ -31,11 +31,9 @@ Function ExecuteScriptFile {
 
     $ReturnValues = @{ }
     try {
-        if ($InputFile) { 
-            $filePath = $(resolve-path $InputFile).path 
-            $Query = [System.IO.File]::ReadAllText("$filePath") 
-        }  
-    
+        $filePath = $(resolve-path $InputFile).path 
+        $Query = [System.IO.File]::ReadAllText("$filePath") 
+
         $cmd = new-object system.Data.SqlClient.SqlCommand($Query, $Connection) 
         $cmd.CommandTimeout = $QueryTimeout 
         $ds = New-Object system.Data.DataSet 
@@ -44,7 +42,7 @@ Function ExecuteScriptFile {
         [void]$da.fill($ds) 
 
         $ReturnValues.add('Status', "Success")
-        $ReturnValues.add('Msg', "Done")
+        $ReturnValues.add('Msg', "")
 
     }
     Catch [System.Data.SqlClient.SqlException] {
@@ -134,7 +132,7 @@ if ((test-path $LogFileFullPath)) {
 }
 
 
-$HeaderRow = "SqlScriptFile", "Status", "Message", "DurationSec"
+$HeaderRow = "SqlScriptFile", "DurationSec", "Status", "Message"
 $HeaderRow -join ","  >> $LogFileFullPath
 
 $myQueryTimeOut = '30' 
@@ -143,6 +141,8 @@ foreach ($f in Get-ChildItem -path $SqlScriptFilePath  -Filter *.sql) {
     $ReturnValues = @{ }
     
     $SqlScriptFileName = $f.FullName.ToString()	
+
+    # Run the Script in $SqlScriptFilename 
     $StartDate = (Get-Date)
     $ReturnValues  = ExecuteScriptFile -Connection $MySqlConnection -InputFile $SqlScriptFileName -QueryTimeout $myQueryTimeOut 
     $Status = $ReturnValues.Get_Item("Status")
@@ -150,24 +150,23 @@ foreach ($f in Get-ChildItem -path $SqlScriptFilePath  -Filter *.sql) {
     $EndDate = (Get-Date)
     $Timespan = (New-TimeSpan -Start $StartDate -End $EndDate)
     $DurationSec = ($Timespan.Seconds + ($Timespan.Minutes * 60) + ($Timespan.Hours * 60 * 60))
-    $rows = New-Object PSObject 
+
     if ($ReturnValues.Get_Item("Status") -eq 'Success') {
         $DisplayMessage = "  Process Completed for File: " + $SqlScriptFileName + " Duration: " + $DurationSec + " Seconds."
         Write-Host $DisplayMessage -ForegroundColor Green -BackgroundColor Black
     }
     else {
-        $ErrorMsg = "  Error running Script for File: " + $SqlScriptFileName  + "Error: " + $ReturnValues.Get_Item("Msg") + "Duration: " + $DurationSec + " Seconds"
-        Write-Host $ErrorMsg -ForegroundColor Red -BackgroundColor Black
-        $Status = "Error"
-        $Message = "Error Message: " + $ReturnValues.Get_Item("Msg")
+        $Message = "Error: " + $Message
         $Message = $Message.Replace("`r`n", "")
         $Message = '"' + $Message.Replace("`n", "") + '"'
+        $DisplayMessage = "  Error Processing File: " + $SqlScriptFileName  + ". Error: " + $Message 
+        Write-Host $DisplayMessage -ForegroundColor Red -BackgroundColor Black
     }
-
-    $DataRow = $SqlScriptFileName, $Status, $Message, $DurationSec
+    $ReturnValues.Clear()
+ 
+    $dataRow = $SqlScriptFileName, $DurationSec, $Status, $Message
     $dataRow -join ","  >> $LogFileFullPath
-
-    $ReturnValues.clear()
 }
 
 $MySqlConnection.close()
+
