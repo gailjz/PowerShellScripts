@@ -1,0 +1,6 @@
+{
+	"ServerName":"your_asa_sqlsvr.database.windows.net",
+	"DatebaseName":"your_asa_dw_name",
+	"IntegratedSecurity":"No",
+	"SqlFilesFolder":"C:\\migratemaster\\output\\1_TranslateMetaData\\AdventureWorksDW2017\\Tables\\Staging"
+}
