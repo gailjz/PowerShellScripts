@@ -1,5 +1,5 @@
 {
-	"ServerName":".\\GAILZSQLSVR2017",
+	"ServerName":".\\YourSqlServerName",
 	"DatebaseName":"AdventureWorksDW2017",
 	"IntegratedSecurity":"Yes",
 	"SqlFilesFolder":"C:\\Z_Scripts\\SQLScripts"
