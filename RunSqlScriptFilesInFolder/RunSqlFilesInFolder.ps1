@@ -2,15 +2,28 @@
 ############################################################################################################
 #
 # Author: Gaiye "Gail" Zhou
-# May 2020
+# June 2020
 # Description: It will run SQL Scripts stored in .sql files in specified folder. 
-# The program will promot users for below information
-#   (1) Folder Name where SQL Scripts are stored
-#   (2) Full Qualified SQL Server Name or Azure Synapse SQL Server Name (Server.database.windows.net)
-#   (3) Using Integrated Security or Not 
-#   (4) SQL Authenfication User Name and Password (if not using Integrated Security)
-# The program will produce a log file for status of runing the SQL Scripts. 
-# The log file name is RunSqlFilesInFolder_Log.csv   (If you name this script RunSqlFilesInFolder.ps1)
+# The program will promot users for one JSON config file name that is placed in the 
+# same location as this script. 
+# Two Sample Json Files below: 
+# Sample 1: working with local SQL Server
+<#
+	"ServerName":".\\YourLocalServerName",
+	"DatebaseName":"AdventureWorksDW2017",
+	"IntegratedSecurity":"Yes",
+	"SqlFilesFolder":"C:\\Z_Scripts\\SQLScripts"
+}
+#>
+# Sample 2: working with Azure Synaspe SQL Pool 
+<#
+{
+	"ServerName":"yoursqlsvr.database.windows.net",
+	"DatebaseName":"yourdatabaseame",
+	"IntegratedSecurity":"No",
+	"SqlFilesFolder":"C:\\migratemaster\\output\\1_TranslateMetaData\\AdventureWorksDW2017\\Tables\\Target"
+}
+#>
 #  
 ############################################################################################################
 
@@ -21,12 +34,133 @@ Function GetPassword([SecureString] $securePassword) {
     return $P
 }
 
-Function ExecuteScriptFile { 
+Function GetDurationText() {
+    [CmdletBinding()] 
+    param( 
+        [Parameter(Position = 1, Mandatory = $true)] [datetime]$StartTime, 
+        [Parameter(Position = 1, Mandatory = $true)] [datetime]$FinishTime
+    ) 
+
+    $Timespan = (New-TimeSpan -Start $StartTime -End $FinishTime)
+
+    $Days = [math]::floor($Timespan.Days)
+    $Hrs = [math]::floor($Timespan.Hours)
+    $Mins = [math]::floor($Timespan.Minutes)
+    $Secs = [math]::floor($Timespan.Seconds)
+    $MSecs = [math]::floor($Timespan.Milliseconds)
+
+    if ($Days -ne 0) {
+
+        $Hrs = $Days * 24 + $Hrs 
+    }
+
+    $durationText = '' # initialize it! 
+
+    if (($Hrs -eq 0) -and ($Mins -eq 0) -and ($Secs -eq 0)) {
+        $durationText = "$MSecs milliseconds." 
+    }
+    elseif (($Hrs -eq 0) -and ($Mins -eq 0)) {
+        $durationText = "$Secs seconds $MSecs milliseconds." 
+    }
+    elseif ( ($Hrs -eq 0) -and ($Mins -ne 0)) {
+        $durationText = "$Mins minutes $Secs seconds $MSecs milliseconds." 
+    }
+    else {
+        $durationText = "$Hrs hours $Mins minutes $Secs seconds $MSecs milliseconds."
+    }
+
+    return $durationText
+
+}
+
+Function GetDurationNumbers() {
+    [CmdletBinding()] 
+    param( 
+        [Parameter(Position = 1, Mandatory = $true)] [datetime]$StartTime, 
+        [Parameter(Position = 1, Mandatory = $true)] [datetime]$FinishTime
+    ) 
+
+    $ReturnValues = @{ }
+    $Timespan = (New-TimeSpan -Start $StartTime -End $FinishTime)
+
+    $Days = [math]::floor($Timespan.Days)
+    $Hrs = [math]::floor($Timespan.Hours) 
+    $Mins = [math]::floor($Timespan.Minutes)
+    $Secs = [math]::floor($Timespan.Seconds)
+    $MSecs = [math]::floor($Timespan.Milliseconds)
+
+    if ($Days -ne 0) {
+
+        $Hrs = $Days * 24 + $Hrs 
+    }
+
+    $ReturnValues.add("Hours", $Hrs)
+    $ReturnValues.add("Minutes", $Mins)
+    $ReturnValues.add("Seconds", $Secs)
+    $ReturnValues.add("Milliseconds", $MSecs)
+
+    return $ReturnValues
+
+}
+
+Function ExecuteSqlScriptFile { 
+    [CmdletBinding()] 
+    param( 
+        [Parameter(Position = 1, Mandatory = $false)] [string]$ConnectionString, 
+        [Parameter(Position = 2, Mandatory = $false)] [string]$InputFile, 
+        [Parameter(Position = 3, Mandatory = $false)] [Int32]$QueryTimeout = 300
+    ) 
+
+    $myReturnValues = @{ }
+    $myReturnValues.add('Status', ' ')
+    $myReturnValues.add('Msg', ' ')
+    $myReturnValues.Clear()
+
+    try {
+      
+        Invoke-Sqlcmd -ConnectionString $ConnectionString -InputFile $InputFile -ErrorAction 'Stop'
+
+        $myReturnValues.add('Status', 'Success')
+        $myReturnValues.add('Msg', ' ')
+
+    }
+    Catch [System.Data.SqlClient.SqlException] {
+        $Err = $_ 
+        if ([string]::IsNullOrEmpty($Err))
+        {
+            $myReturnValues.add('Status', 'Error')
+            $myReturnValues.add('Msg', ' ')
+        }
+        else {
+            $myReturnValues.add('Status', 'Error')
+            $myReturnValues.add('Msg', $Err)
+        } 
+    } 
+    Catch {
+        $Err = $_ 
+        if ([string]::IsNullOrEmpty($Err))
+        {
+            $myReturnValues.add('Status', 'Error')
+            $myReturnValues.add('Msg', ' ')
+        }
+        else {
+            $myReturnValues.add('Status', 'Error')
+            $myReturnValues.add('Msg', $Err)
+        }
+    } 
+    
+    return $myReturnValues
+	 
+} 
+
+# Keep this function even it is not used by this script 
+#   ExecuteSqlCmdFile is used. ExecuteSqlCmdFile is preferred. 
+Function ExecuteQueryFile { 
     [CmdletBinding()] 
     param( 
         [Parameter(Position = 1, Mandatory = $false)] [System.Data.SqlClient.SqlConnection]$Connection, 
         [Parameter(Position = 2, Mandatory = $false)] [string]$InputFile, 
-        [Parameter(Position = 3, Mandatory = $false)] [Int32]$QueryTimeout = 30
+        [Parameter(Position = 3, Mandatory = $false)] [Int32]$QueryTimeout = 300
     ) 
 
     $ReturnValues = @{ }
@@ -64,38 +198,76 @@ Function ExecuteScriptFile {
 	 
 } 
 
-###############################################################
-# Main Program Starts Here 
-###############################################################
+######################################################################################
+########### Main Program 
+#######################################################################################
 
-$MySqlScriptFilePath = 'C:\Z_Tests\SQLScripts'
-$MySqlServer = '.\GailzSqlSvr2017'
-$MyDatabase = 'AdventureWorksDW2017'
-$DefaultIntegrated = 'YES'
+$ProgramStartTime = (Get-Date)
 
-$SqlScriptFilePath = Read-Host -prompt "Enter the Folder of the SQL Script Files or press 'Enter' to accept the default [$($MySqlScriptFilePath)]"
-if ([string]::IsNullOrEmpty($SqlScriptFilePath)) {
-    $SqlScriptFilePath = $MySqlScriptFilePath
+$ScriptPath = Split-Path $MyInvocation.MyCommand.Path -Parent
+Set-Location -Path $ScriptPath
+
+
+#===========================================
+# Config File, SQL Server, and DB here
+#===========================================
+
+$defaultCfgFile = "sql_scripts.json"
+
+$cfgFile = Read-Host -prompt "Enter the Config File Name or press 'Enter' to accept the default [$($defaultCfgFile)]"
+if([string]::IsNullOrEmpty($cfgFile)) {
+    $cfgFile = $defaultCfgFile
+}
+$CfgFileFullPath = join-path $ScriptPath  $cfgFile
+if (!(test-path $CfgFileFullPath )) {
+    Write-Host "Could not find Config File: $CfgFileFullPath " -ForegroundColor Red
+    break 
 }
 
-$server = Read-Host -prompt "Enter the SQL Server Name  or press 'Enter' to accept the default [$($MySqlServer)]"
-if ([string]::IsNullOrEmpty($server)) {
-    $server = $MySqlServer
+$JsonConfig = Get-Content -Path $CfgFileFullPath | ConvertFrom-Json 
+
+$server = $JsonConfig.ServerName
+$database  = $JsonConfig.DatebaseName
+$Integrated = $JsonConfig.IntegratedSecurity
+$SqlScriptFilePath  = $JsonConfig.SqlFilesFolder
+
+# Check to see if there are any .sql files in the specified folder 
+$fileCount = [System.IO.Directory]::GetFiles($SqlScriptFilePath, "*.sql")
+if ([String]::IsNullOrEmpty($fileCount) -or [String]::IsNullOrWhiteSpace($fileCount)) {
+
+    Write-Host "Did not find .sql files in this folder: $SqlScriptFilePath " -ForegroundColor Magenta
+    break 
 }
 
-$database = Read-Host -prompt "Enter the Database Name  or press 'Enter' to accept the default [$($MyDatabase)]"
-if ([string]::IsNullOrEmpty($database)) {
-    $database = $MyDatabase
+$ProcessedFilesPath = $SqlScriptFilePath + "\Processed"
+if (!(test-path $ProcessedFilesPath)) {
+    Write-Host "  $ProcessedFilesPath was created to store processed SQL Files." -ForegroundColor Magenta
+    New-item "$ProcessedFilesPath" -ItemType Dir | Out-Null
 }
 
-$Integrated = Read-Host -prompt "Enter 'Yes' or 'No' to connect using integrated security or press 'Enter' to accept the default [$($DefaultIntegrated)]"
-if ([string]::IsNullOrEmpty($Integrated)) {
-    $Integrated = $DefaultIntegrated
+
+$MyLogFileWoExt = [System.IO.Path]::GetFileNameWithoutExtension($cfgFile )
+$LogDir = $ScriptPath + "\Log"
+
+if (!(test-path $LogDir)) {
+    Write-Host "  $LogDir was created to store log files." -ForegroundColor Magenta
+    New-item "$LogDir" -ItemType Dir | Out-Null
 }
+
+$DateTimeNow = Get-Date -UFormat "%Y_%m_%d_%H_%M_%S"
+$LogFileFullPath = $LogDir + "\" + $MyLogFileWoExt + "_log_" + $DateTimeNow + ".csv"
+if ((test-path $LogFileFullPath)) {
+    Write-Host "Replace previous log file: "$LogFileFullPath -ForegroundColor Magenta
+    Remove-Item $LogFileFullPath -Force
+}
+
+#===========================================
+# SQL Server Connection 
+#===========================================
 
 if ($Integrated.toUpper() -eq "NO") {
     Write-Host "Please Enter SQLAUTH Login Information..." -ForegroundColor Yellow
-    $UserName = Read-Host -prompt "Enter the User Name: "
+    $UserName = Read-Host -prompt "Enter the User Name "
     if ([string]::IsNullOrEmpty($UserName)) {
         Write-Host "A user name must be entered" -ForegroundColor Red
         break
@@ -108,65 +280,120 @@ if ($Integrated.toUpper() -eq "NO") {
 
 }
 
-$connectionTimeOut = '30' # in seconds 
-$MySqlConnection = New-Object System.Data.SqlClient.SqlConnection("Data Source=$server;Integrated Security=SSPI;Initial Catalog=$database;Connect Timeout=$connectionTimeOut")
+$connectionTimeOut = 60 # in seconds 
+$MyConnectionString = "Data Source=$server;Integrated Security=SSPI;Initial Catalog=$database;Connect Timeout=$connectionTimeOut"
 
 if ($Integrated.toUpper() -eq 'NO') {
-    $MySqlConnection = New-Object System.Data.SqlClient.SqlConnection("Data Source=$server;Integrated Security=false;Initial Catalog=$database;User ID=$UserName;Password=$Password;Connect Timeout=$connectionTimeOut")    
+    $MyConnectionString = "Data Source=$server;Integrated Security=false;Initial Catalog=$database;User ID=$UserName;Password=$Password;Connect Timeout=$connectionTimeOut"
 }
 
-$MySqlConnection.open()
+#$MySqlConnection = New-Object System.Data.SqlClient.SqlConnection($MyConnectionString)
+#$MySqlConnection.open()
 
 
-$ScriptPath = Split-Path $MyInvocation.MyCommand.Path -Parent
-Set-Location -Path $ScriptPath
+#===========================================
+# Processing SQL Files 
+#===========================================
 
-$MyScriptFile = $MyInvocation.MyCommand.Path 
+$headerRow = New-Object PSObject
 
-$MyScriptFileWoExt = [System.IO.Path]::GetFileNameWithoutExtension($MyScriptFile)
-$LogFileFullPath = $MyScriptFileWoExt + "_Log.csv"
+$headerRow | Add-Member -MemberType NoteProperty -Name "SqlScriptFile" -Value "SqlScriptFile" -force
+$headerRow | Add-Member -MemberType NoteProperty -Name "DurationText" -Value "DurationText" -force
+$headerRow | Add-Member -MemberType NoteProperty -Name "DurationHours" -Value "DurationHours" -force
+$headerRow | Add-Member -MemberType NoteProperty -Name "DurationMinutes" -Value "DurationMinutes" -force
+$headerRow | Add-Member -MemberType NoteProperty -Name "DurationSeconds" -Value "DurationSeconds"  -force
+$headerRow | Add-Member -MemberType NoteProperty -Name "DurationMilliseconds" -Value "DurationMilliseconds" -force
+$headerRow | Add-Member -MemberType NoteProperty -Name "Status" -Value "Status" -force
+$headerRow | Add-Member -MemberType NoteProperty -Name "Message" -Value  "Message" -force
 
-if ((test-path $LogFileFullPath)) {
-    Write-Host "Replace previous log file: "$LogFileFullPath -ForegroundColor Magenta
-    Remove-Item $LogFileFullPath -Force
-}
+Export-Csv -InputObject $headerRow -Path $LogFileFullPath -NoTypeInformation -Append -Force 
 
 
-$HeaderRow = "SqlScriptFile", "DurationSec", "Status", "Message"
-$HeaderRow -join ","  >> $LogFileFullPath
-
-$myQueryTimeOut = '30' 
+$myQueryTimeOut = 300
 foreach ($f in Get-ChildItem -path $SqlScriptFilePath  -Filter *.sql) {
     #Write-Host "File Name: " $f.FullName.ToString()	
-    $ReturnValues = @{ }
-    
+    $ReturnValues = @{}
+    $ReturnValues.Clear()
+
     $SqlScriptFileName = $f.FullName.ToString()	
 
     # Run the Script in $SqlScriptFilename 
-    $StartDate = (Get-Date)
-    $ReturnValues  = ExecuteScriptFile -Connection $MySqlConnection -InputFile $SqlScriptFileName -QueryTimeout $myQueryTimeOut 
-    $Status = $ReturnValues.Get_Item("Status")
-    $Message = $ReturnValues.Get_Item("Msg")
-    $EndDate = (Get-Date)
-    $Timespan = (New-TimeSpan -Start $StartDate -End $EndDate)
-    $DurationSec = ($Timespan.Seconds + ($Timespan.Minutes * 60) + ($Timespan.Hours * 60 * 60))
+    $StartTime = (Get-Date)
 
-    if ($ReturnValues.Get_Item("Status") -eq 'Success') {
-        $DisplayMessage = "  Process Completed for File: " + $SqlScriptFileName + " Duration: " + $DurationSec + " Seconds."
+   # $ReturnValues = ExecuteQueryFile -Connection $MySqlConnection -InputFile $SqlScriptFileName -QueryTimeout $myQueryTimeOut 
+     $ReturnValues = ExecuteSqlScriptFile -ConnectionString $MyConnectionString -InputFile $SqlScriptFileName -QueryTimeout $myQueryTimeOut 
+
+    $FinishTime = (Get-Date)
+    
+
+    $Status = $ReturnValues.Status.ToString()
+    $Message = $ReturnValues.Msg.ToString()
+   
+
+    $runDurationText = GetDurationText -StartTime $StartTime -FinishTime $FinishTime
+
+    if ($Status -eq 'Success') {
+        $DisplayMessage = "  Process Completed for File: " + $SqlScriptFileName + "  Duration: $runDurationText "
         Write-Host $DisplayMessage -ForegroundColor Green -BackgroundColor Black
+        # Move the file into Processed Folder 
+        Move-Item  $SqlScriptFileName  -Destination $ProcessedFilesPath
     }
-    else {
+    elseif ($Status -eq 'Error') {
         $Message = "Error: " + $Message
         $Message = $Message.Replace("`r`n", "")
         $Message = '"' + $Message.Replace("`n", "") + '"'
-        $DisplayMessage = "  Error Processing File: " + $SqlScriptFileName  + ". Error: " + $Message 
+        $DisplayMessage = "  Error Processing File: " + $SqlScriptFileName + ". Error: " + $Message 
         Write-Host $DisplayMessage -ForegroundColor Red -BackgroundColor Black
     }
-    $ReturnValues.Clear()
- 
-    $dataRow = $SqlScriptFileName, $DurationSec, $Status, $Message
+    else {
+        if ([string]::IsNullOrEmpty($Message))
+        {
+            $Message = ' '
+            $Status = ' '
+        }
+        else 
+        {  
+            $Message = "Unknown Output: " + $Message
+            $Message = $Message.Replace("`r`n", "")
+            $Message = '"' + $Message.Replace("`n", "") + '"'
+            $DisplayMessage = "  Error Processing File: " + $SqlScriptFileName + ". Error: " + $Message 
+            Write-Host $DisplayMessage -ForegroundColor Red -BackgroundColor Black
+            $Status = 'Unknown'
+        }
+    }
+
+    $runDurationNumbers = GetDurationNumbers -StartTime $StartTime -FinishTime $FinishTime
+    $runHours = $runDurationNumbers.Hours
+    $runMinutes = $runDurationNumbers.Minutes
+    $runSeconds = $runDurationNumbers.Seconds
+    $runMilliSeconds = $runDurationNumbers.Milliseconds 
+
+    <#
+    $dataRow = $SqlScriptFileName, $runDurationText, $runHours, $runMinutes, $runSeconds, $runMilliSeconds, $Status, $Message
     $dataRow -join ","  >> $LogFileFullPath
+    #>
+    $row = New-Object PSObject
+
+    $row | Add-Member -MemberType NoteProperty -Name "SqlScriptFile" -Value $SqlScriptFileName -force
+    $row | Add-Member -MemberType NoteProperty -Name "DurationText" -Value $runDurationText -force
+    $row | Add-Member -MemberType NoteProperty -Name "DurationHours" -Value $runHours -force
+    $row | Add-Member -MemberType NoteProperty -Name "DurationMinutes" -Value $runMinutes -force
+    $row | Add-Member -MemberType NoteProperty -Name "DurationSeconds" -Value $runSeconds -force
+    $row | Add-Member -MemberType NoteProperty -Name "DurationMilliseconds" -Value $runMilliSeconds -force
+    $row | Add-Member -MemberType NoteProperty -Name "Status" -Value $Status -force
+    $row | Add-Member -MemberType NoteProperty -Name "Message" -Value  $Message -force
+
+    Export-Csv -InputObject $row -Path $LogFileFullPath -NoTypeInformation -Append -Force 
+
 }
 
-$MySqlConnection.close()
+#$MySqlConnection.close()
 
+
+$ProgramFinishTime = (Get-Date)
+
+$durationText = GetDurationText  -StartTime  $ProgramStartTime -FinishTime $ProgramFinishTime
+
+Write-Host "  Total time runing these SQL Files: $durationText " -ForegroundColor Blue -BackgroundColor Black
+
+Set-Location -Path $ScriptPath
